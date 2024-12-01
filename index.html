@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<!-- 
+Image to PDF Converter
+Written by Jonas Lund 2024
+
+Description:
+This is a browser-based tool that converts JPEG and PNG images to a PDF document.
+Each image will be placed on its own page in the PDF, maintaining its original aspect ratio
+and orientation (landscape/portrait).
+
+Features:
+- Drag and drop or click to upload multiple images
+- Supports JPEG and PNG formats
+- Maintains image orientation (landscape/portrait)
+- Preserves aspect ratios
+- Allows reordering of images via drag and drop
+- Dark mode Material Design interface
+- Shows image dimensions and orientation
+- Individual image removal
+- Centered images on PDF pages
+- Automatic page sizing based on image dimensions
+
+Requirements:
+- Modern web browser with JavaScript enabled
+- No server/backend needed - runs entirely in the browser
+- Internet connection (for loading required libraries)
+
+Usage:
+1. Drag and drop images or click to select files
+2. Arrange images in desired order by dragging
+3. Remove unwanted images using the remove button
+4. Click "Create PDF" to generate and download the PDF
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image to PDF Converter</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #BB86FC;
+            --surface-color: #121212;
+            --background-color: #1E1E1E;
+            --on-surface: #E1E1E1;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: var(--background-color);
+            color: var(--on-surface);
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .instructions {
+            background-color: var(--surface-color);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+
+        .instructions h2 {
+            color: var(--primary-color);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+        }
+
+        .instructions ul {
+            margin: 0;
+            padding-left: 1.5rem;
+        }
+
+        .instructions li {
+            margin-bottom: 0.5rem;
+        }
+
+        .feature-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .feature-item {
+            background-color: rgba(187, 134, 252, 0.1);
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        .upload-area {
+            background-color: var(--surface-color);
+            border: 2px dashed var(--primary-color);
+            border-radius: 8px;
+            padding: 2rem;
+            text-align: center;
+            margin-bottom: 2rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .upload-area:hover {
+            background-color: rgba(187, 134, 252, 0.1);
+        }
+
+        .image-list {
+            background-color: var(--surface-color);
+            border-radius: 8px;
+            padding: 1rem;
+            min-height: 100px;
+        }
+
+        .image-item {
+            display: flex;
+            align-items: center;
+            background-color: rgba(255, 255, 255, 0.05);
+            padding: 0.5rem;
+            margin-bottom: 0.5rem;
+            border-radius: 4px;
+            cursor: move;
+        }
+
+        .image-item img {
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+            margin-right: 1rem;
+            border-radius: 4px;
+        }
+
+        .image-item .details {
+            flex-grow: 1;
+        }
+
+        .remove-btn {
+            background-color: #CF6679;
+            color: black;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .create-pdf-btn {
+            background-color: var(--primary-color);
+            color: black;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 4px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 1rem;
+            transition: background-color 0.3s ease;
+        }
+
+        .create-pdf-btn:hover {
+            background-color: #9965f4;
+        }
+
+        .create-pdf-btn:disabled {
+            background-color: #666;
+            cursor: not-allowed;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 2rem;
+            color: var(--on-surface);
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Image to PDF Converter</h1>
+        </div>
+
+        <div class="instructions">
+            <h2>How to Use</h2>
+            <ul>
+                <li>Drop your images into the upload area below or click to select files</li>
+                <li>Rearrange images by dragging them into the desired order</li>
+                <li>Remove unwanted images using the remove button</li>
+                <li>Click "Create PDF" to generate and download your PDF</li>
+            </ul>
+            <div class="feature-list">
+                <div class="feature-item">✓ JPEG & PNG Support</div>
+                <div class="feature-item">✓ Maintains Orientation</div>
+                <div class="feature-item">✓ Preserves Quality</div>
+                <div class="feature-item">✓ Drag & Drop</div>
+            </div>
+        </div>
+
+        <div class="upload-area" id="uploadArea">
+            <p>Drop images here or click to select files</p>
+            <input type="file" id="fileInput" multiple accept="image/jpeg,image/png" style="display: none">
+        </div>
+
+        <div class="image-list" id="imageList"></div>
+
+        <button class="create-pdf-btn" id="createPdfBtn" disabled>Create PDF</button>
+
+        <div class="footer">
+            Written by Jonas Lund 2024
+        </div>
+    </div>
+
+    <script>
+        // Initialize jsPDF
+        const { jsPDF } = window.jspdf;
+        let images = [];
+
+        // Get DOM elements
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const imageList = document.getElementById('imageList');
+        const createPdfBtn = document.getElementById('createPdfBtn');
+
+        // Initialize Sortable for drag and drop reordering
+        new Sortable(imageList, {
+            animation: 150,
+            onEnd: function() {
+                // Update images array order based on DOM order
+                const newImages = [];
+                imageList.querySelectorAll('.image-item').forEach(item => {
+                    const index = parseInt(item.dataset.index);
+                    newImages.push(images[index]);
+                });
+                images = newImages;
+            }
+        });
+
+        // Setup upload area click handler
+        uploadArea.addEventListener('click', () => fileInput.click());
+
+        // Setup file input change handler
+        fileInput.addEventListener('change', handleFiles);
+
+        // Setup drag and drop handlers for upload area
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.style.backgroundColor = 'rgba(187, 134, 252, 0.2)';
+        });
+
+        uploadArea.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            uploadArea.style.backgroundColor = '';
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.style.backgroundColor = '';
+            const files = e.dataTransfer.files;
+            handleFiles({ target: { files } });
+        });
+
+        // Function to handle file selection
+        function handleFiles(event) {
+            const files = Array.from(event.target.files).filter(file => 
+                file.type === 'image/jpeg' || file.type === 'image/png'
+            );
+
+            files.forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.src = e.target.result;
+                    img.onload = () => {
+                        images.push({
+                            data: e.target.result,
+                            width: img.width,
+                            height: img.height,
+                            name: file.name,
+                            orientation: img.width > img.height ? 'landscape' : 'portrait'
+                        });
+                        updateImageList();
+                    };
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // Function to update the image list display
+        function updateImageList() {
+            imageList.innerHTML = '';
+            images.forEach((image, index) => {
+                const item = document.createElement('div');
+                item.className = 'image-item';
+                item.dataset.index = index;
+                item.innerHTML = `
+                    <img src="${image.data}" alt="Selected image">
+                    <div class="details">
+                        <div>${image.name}</div>
+                        <div>${image.width}x${image.height}px (${image.orientation})</div>
+                    </div>
+                    <button class="remove-btn" onclick="removeImage(${index})">Remove</button>
+                `;
+                imageList.appendChild(item);
+            });
+            createPdfBtn.disabled = images.length === 0;
+        }
+
+        // Function to remove an image
+        function removeImage(index) {
+            images.splice(index, 1);
+            updateImageList();
+        }
+
+        // Function to calculate PDF page size and scale for an image
+        function calculatePageSize(image) {
+            const MAX_PDF_WIDTH = 595.28;  // A4 width in points at 72 DPI
+            const MAX_PDF_HEIGHT = 841.89; // A4 height in points at 72 DPI
+            
+            let pageWidth, pageHeight, scale;
+            let imgWidth = image.width;
+            let imgHeight = image.height;
+            
+            // Calculate scale to fit within PDF page while maintaining aspect ratio
+            const widthScale = MAX_PDF_WIDTH / imgWidth;
+            const heightScale = MAX_PDF_HEIGHT / imgHeight;
+            scale = Math.min(widthScale, heightScale);
+            
+            // Calculate final dimensions
+            pageWidth = imgWidth * scale;
+            pageHeight = imgHeight * scale;
+            
+            return {
+                width: pageWidth,
+                height: pageHeight,
+                scale: scale
+            };
+        }
+
+        // Create PDF handler
+        createPdfBtn.addEventListener('click', async () => {
+            let pdf;
+
+            for (let i = 0; i < images.length; i++) {
+                const image = images[i];
+                const isLandscape = image.width > image.height;
+                const { width, height, scale } = calculatePageSize(image);
+
+                // Create new PDF or add page
+                if (i === 0) {
+                    pdf = new jsPDF({
+                        orientation: isLandscape ? 'landscape' : 'portrait',
+                        unit: 'pt',
+                        format: [width, height]
+                    });
+                } else {
+                    pdf.addPage([width, height], isLandscape ? 'landscape' : 'portrait');
+                }
+
+                // Calculate centered position
+                const x = (pdf.internal.pageSize.getWidth() - width) / 2;
+                const y = (pdf.internal.pageSize.getHeight() - height) / 2;
+
+                // Add image to PDF
+                pdf.addImage(
+                    image.data,
+                    'JPEG',
+                    x,
+                    y,
+                    width,
+                    height
+                );
+            }
+
+            pdf.save('converted-images.pdf');
+        });
+    </script>
+</body>
+</html>
